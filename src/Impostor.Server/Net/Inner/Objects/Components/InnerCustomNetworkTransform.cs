@@ -41,6 +41,11 @@ namespace Impostor.Server.Net.Inner.Objects.Components
         }
 
         public Vector2 Position { get; private set; }
+        
+        internal void SetPosition(Vector2 position)
+        {
+            Position = position;
+        }
 
         public override ValueTask<bool> SerializeAsync(IMessageWriter writer, bool initialState)
         {
@@ -66,7 +71,7 @@ namespace Impostor.Server.Net.Inner.Objects.Components
             if (initialState)
             {
                 _lastSequenceId = sequenceId;
-                await SetPositionAsync(sender, reader.ReadVector2());
+                SetPosition(reader.ReadVector2());
             }
             else
             {
@@ -84,7 +89,7 @@ namespace Impostor.Server.Net.Inner.Objects.Components
                     if (SidGreaterThan(newSid, _lastSequenceId))
                     {
                         _lastSequenceId = newSid;
-                        await SetPositionAsync(sender, position);
+                        SetPosition(position);
                     }
                 }
             }
@@ -133,6 +138,17 @@ namespace Impostor.Server.Net.Inner.Objects.Components
             playerMovementEvent.Reset(Game, sender, _playerControl);
             await _eventManager.CallAsync(playerMovementEvent);
             _pool.Return(playerMovementEvent);
+        }
+
+        internal async ValueTask<bool> HandleMovementPacketAsync(IClientPlayer sender)
+        {
+            var playerMovementEvent = _pool.Get();
+            playerMovementEvent.Reset(Game, sender, _playerControl);
+            await _eventManager.CallAsync(playerMovementEvent);
+            var result = !playerMovementEvent.IsCancelled;
+            _pool.Return(playerMovementEvent);
+
+            return result;
         }
 
         private static bool SidGreaterThan(ushort newSid, ushort prevSid)
