@@ -15,6 +15,7 @@ using Impostor.Api.Net.Inner;
 using Impostor.Api.Net.Inner.Objects;
 using Impostor.Api.Net.Messages.Rpcs;
 using Impostor.Api.Utils;
+using Impostor.Server.Events.Game.Player;
 using Impostor.Server.Events.Player;
 using Impostor.Server.Net.Inner.Objects.Components;
 using Impostor.Server.Net.State;
@@ -392,13 +393,12 @@ namespace Impostor.Server.Net.Inner.Objects
                     }
 
                     PlayerInfo.RoleType = role;
-
                     if (Game.GameState == GameStates.Starting && Game.Players.All(clientPlayer => clientPlayer.Character?.PlayerInfo.RoleType != null))
                     {
                         await Game.StartedAsync();
                     }
 
-                    break;
+                    return await HandleSetRole(sender, PlayerInfo, role);
                 }
 
                 case RpcCalls.ProtectPlayer:
@@ -988,6 +988,7 @@ namespace Impostor.Server.Net.Inner.Objects
 
         private async ValueTask<bool> HandleMurderPlayer(ClientPlayer sender, InnerPlayerControl? target, MurderResultFlags result)
         {
+            bool returnValue = true;
             if (!_game.IsHostAuthoritive)
             {
                 if (await sender.Client.ReportCheatAsync(RpcCalls.MurderPlayer, CheatCategory.GameFlow, "Client tried to murder directly"))
@@ -1030,12 +1031,14 @@ namespace Impostor.Server.Net.Inner.Objects
                     target.ProtectedOn = null;
                 }
 
-                await _eventManager.CallAsync(new PlayerMurderEvent(Game, sender, this, target, result));
+                var @event = new PlayerMurderEvent(Game, sender, this, target, result);
+                await _eventManager.CallAsync(@event);
+                returnValue = !@event.IsCancelled;
             }
 
             IsMurdering = null;
 
-            return true;
+            return returnValue;
         }
 
         private async ValueTask<bool> HandleProtectPlayer(ClientPlayer sender, IInnerPlayerControl? target)
@@ -1063,6 +1066,14 @@ namespace Impostor.Server.Net.Inner.Objects
         private async ValueTask<bool> HandleSendChat(ClientPlayer sender, string message)
         {
             var @event = new PlayerChatEvent(Game, sender, this, message);
+            await _eventManager.CallAsync(@event);
+
+            return !@event.IsCancelled;
+        }
+
+        private async ValueTask<bool> HandleSetRole(ClientPlayer sender, IInnerPlayerInfo playerInfo, RoleTypes role)
+        {
+            var @event = new PlayerSetRoleEvent(Game, sender, this, playerInfo, role);
             await _eventManager.CallAsync(@event);
 
             return !@event.IsCancelled;

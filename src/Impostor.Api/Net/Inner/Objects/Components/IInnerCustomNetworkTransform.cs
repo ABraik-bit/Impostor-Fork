@@ -10,6 +10,10 @@ namespace Impostor.Api.Net.Inner.Objects.Components
         /// </summary>
         Vector2 Position { get; }
 
+        IMessageReader PacketMessageReader { get; }
+
+        ushort _lastSequenceId { get; }
+
         /// <summary>
         ///     Snaps the current to the given position <see cref="IInnerPlayerControl" />.
         /// </summary>

@@ -7,6 +7,7 @@ using Impostor.Api.Net;
 using Impostor.Api.Net.Custom;
 using Impostor.Api.Net.Inner;
 using Impostor.Api.Net.Messages.Rpcs;
+using Impostor.Hazel;
 using Impostor.Server.Events.Player;
 using Impostor.Server.Net.State;
 using Microsoft.Extensions.Logging;
@@ -23,7 +24,7 @@ namespace Impostor.Server.Net.Inner.Objects.Components
         private readonly IEventManager _eventManager;
         private readonly ObjectPool<PlayerMovementEvent> _pool;
 
-        private ushort _lastSequenceId;
+        public ushort _lastSequenceId { get; private set; }
 
         public InnerCustomNetworkTransform(ICustomMessageManager<ICustomRpc> customMessageManager, Game game, ILogger<InnerCustomNetworkTransform> logger, InnerPlayerControl playerControl, IEventManager eventManager, ObjectPool<PlayerMovementEvent> pool) : base(customMessageManager, game)
         {
@@ -41,7 +42,9 @@ namespace Impostor.Server.Net.Inner.Objects.Components
         }
 
         public Vector2 Position { get; private set; }
-        
+
+        public IMessageReader PacketMessageReader { get; private set; }
+
         internal void SetPosition(Vector2 position)
         {
             Position = position;
@@ -140,8 +143,9 @@ namespace Impostor.Server.Net.Inner.Objects.Components
             _pool.Return(playerMovementEvent);
         }
 
-        internal async ValueTask<bool> HandleMovementPacketAsync(IClientPlayer sender)
+        internal async ValueTask<bool> HandleMovementPacketAsync(IClientPlayer sender, IMessageReader reader)
         {
+            PacketMessageReader = reader;
             var playerMovementEvent = _pool.Get();
             playerMovementEvent.Reset(Game, sender, _playerControl);
             await _eventManager.CallAsync(playerMovementEvent);

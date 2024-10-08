@@ -252,8 +252,9 @@ namespace Impostor.Server.Net
                                 var sequenceId = childMessage.ReadUInt32();
 
                                 // Call an event with the last set position
-                                shouldSendData = await Player.Character.NetworkTransform.HandleMovementPacketAsync(Player);
-
+                                reader.Seek(position);
+                                var readerCopy = reader.Copy();
+                                shouldSendData = await Player.Character.NetworkTransform.HandleMovementPacketAsync(Player, readerCopy);
                             }
                         }
 
